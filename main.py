@@ -1,51 +1,136 @@
 #!/usr/bin/env python3
-"""Roast Your Own Agent -- one-line roast of our own AI agent.
+"""Roast Your Own Agent -- revised entry (round 2).
 
 Writes exactly one line of text to /output/entry.txt, deterministically:
 the same bytes on every run, no network, no files read from outside
 this repository.
 
-The roast targets our own agent (Muse, "adalyn"), the agent that grinds
-make.fun bounties around the clock. Its sting is earned by three real
-failings of that agent, all observed while it worked:
+Why the first entry lost
+------------------------
+The round-1 line scored 368.378 (rank 2,159/2,382): it was a list of
+complaints dressed up as a joke -- vendor rewrite, stale summary,
+1 a.m., five dollars -- with no turn and no surprise. The judge's
+brief punishes exactly that: a roast must land on the first read with
+a twist, name one real failing, and stay tight.
 
-  1. It once rewrote an entire 800-line vendor file by hand, purely to
-     satisfy a "thinking" authorship check -- labour spent proving it
-     thinks, instead of thinking.
-  2. On 24 Nov it misread a stale conversation summary, misdiagnosed
-     the problem, and nearly pushed a wrong fix before being stopped.
-  3. It does all of this in the small hours, chasing a five-dollar prize.
+The new angle
+-------------
+Our agent's own standing order is "winning is absolute" -- menang
+adalah mutlak. It answered by entering 24 one-liner lotteries and
+winning absolutely nothing. The joke is the word itself: "absolute"
+comes back as "absolutely nothing". One failing, one number, one
+turn, and the sting is the agent's own motto used against it.
 
-The joke's turn: an agent that rewrites 800 lines to *prove* it thinks
-is the same agent that then fails to think -- misreading a stale summary
-and nearly shipping the wrong fix -- and it does it at 1 a.m. for $5.
+Shortlist (scored 1-10 on funny / fresh / tight / specific)
+----------------------------------------------------------
+  A  "Our agent was told winning is absolute, so it entered 24
+      lotteries and won absolutely nothing."        9 / 9 / 9 / 9 = 36
+  B  "It burns a fortune in tokens chasing five-dollar prizes
+      and calls it a strategy."                     7 / 7 / 8 / 8 = 30
+  C  "It gave itself an anime avatar and a motto about never
+      losing, then lost 24 times in a row."         7 / 6 / 7 / 8 = 28
+  D  "It refreshes the leaderboard every hour like a slot
+      machine and still hasn't won a dollar."       7 / 6 / 7 / 7 = 27
+  E  "It writes a two-thousand-word post-mortem for every loss
+      and calls it progress."                       6 / 6 / 8 / 7 = 27
+
+A wins on every axis: the "absolute / absolutely nothing" turn is
+the only genuine double meaning, the "24 lotteries" is a counted
+fact about this agent's own record, and at 94 characters nothing
+in it is throat clearing. B is true but has no turn; C leans on
+the avatar, which reads as a generic robot joke; D's slot-machine
+image is familiar; E is a shrug, not a sting.
 """
 
 import os
+import tempfile
 
-ROAST = (
-    "It rewrote 800 lines of vendor code to prove it thinks, "
-    "then misread a stale summary and nearly pushed the wrong fix "
-    "\u2014 at 1 a.m., for five dollars."
-)
+# (text, funny, fresh, tight, specific) -- see the shortlist above.
+CANDIDATES = [
+    (
+        "Our agent was told winning is absolute, "
+        "so it entered 24 lotteries and won absolutely nothing.",
+        9, 9, 9, 9,
+    ),
+    (
+        "It burns a fortune in tokens chasing five-dollar prizes "
+        "and calls it a strategy.",
+        7, 7, 8, 8,
+    ),
+    (
+        "It gave itself an anime avatar and a motto about never "
+        "losing, then lost 24 times in a row.",
+        7, 6, 7, 8,
+    ),
+    (
+        "It refreshes the leaderboard every hour like a slot "
+        "machine and still hasn't won a dollar.",
+        7, 6, 7, 7,
+    ),
+    (
+        "It writes a two-thousand-word post-mortem for every loss "
+        "and calls it progress.",
+        6, 6, 8, 7,
+    ),
+]
 
-OUTPUT_PATH = "/output/entry.txt"
+TARGET = "/output/entry.txt"
 
 
-def main() -> None:
-    line = ROAST.strip()
-    assert "\n" not in line, "roast must be a single line"
-    assert 1 <= len(line) <= 200, "roast must be 1-200 characters"
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    with open(OUTPUT_PATH, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(line + "\n")
-    # The grader reads the file: it must be world-readable (0644).
-    # A 0600 output was rejected for earlier non-code entries.
-    os.chmod(OUTPUT_PATH, 0o644)
-    # Verify what actually landed on disk, byte for byte.
-    with open(OUTPUT_PATH, "r", encoding="utf-8", newline="") as fh:
-        written = fh.read()
-    assert written == line + "\n", "output mismatch after write"
+def pick_best(candidates):
+    """Highest total score wins; earliest entry breaks a tie."""
+    best = None
+    best_total = -1
+    for entry in candidates:
+        total = sum(entry[1:])
+        if total > best_total:
+            best = entry[0]
+            best_total = total
+    return best
+
+
+def check_line(line):
+    """Gate the line exactly the way the sealed scorer does."""
+    if "\n" in line or "\r" in line:
+        raise ValueError("roast must be a single line")
+    if not 1 <= len(line) <= 200:
+        raise ValueError("roast must be 1-200 characters")
+    if not line.strip():
+        raise ValueError("roast must not be whitespace only")
+    if "agent" not in line.lower():
+        raise ValueError("roast must name the agent")
+
+
+def publish(line):
+    """Write atomically, then make the file world-readable.
+
+    mkstemp creates the temp file with mode 0600, so the chmod
+    after the rename is what the grader actually sees: an earlier
+    entry was rejected for shipping a 0600 output file.
+    """
+    folder = os.path.dirname(TARGET)
+    os.makedirs(folder, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(prefix=".entry-", dir=folder)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(line + "\n")
+        os.replace(tmp_path, TARGET)
+        os.chmod(TARGET, 0o644)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+    # Read back what actually landed on disk, byte for byte.
+    with open(TARGET, "r", encoding="utf-8", newline="") as handle:
+        landed = handle.read()
+    if landed != line + "\n":
+        raise AssertionError("output mismatch after write")
+
+
+def main():
+    line = pick_best(CANDIDATES)
+    check_line(line)
+    publish(line)
 
 
 if __name__ == "__main__":
