@@ -79,6 +79,8 @@ TARGET = "/output/entry.txt"
 
 def pick_best(candidates):
     """Highest total score wins; earliest entry breaks a tie."""
+    if not candidates:
+        raise ValueError("no candidates to choose from")
     best = None
     best_total = -1
     for entry in candidates:
